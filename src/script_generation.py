@@ -3,9 +3,13 @@ Script Generation Module
 -------------------------
 Generates a structured video script (hook + body + CTA) from a topic.
 
-Supports two providers, switchable via configs/settings.py -> SCRIPT_PROVIDER:
-  - "gemini" (active, ready to use)
-  - "kimi"   (implemented, needs KIMI_API_KEY to activate)
+Supports two providers, with AUTOMATIC FALLBACK:
+  - Preferred provider is set via configs/settings.py -> SCRIPT_PROVIDER
+    (defaults to "gemini")
+  - If the preferred provider fails for any reason (quota exceeded,
+    missing key, network error), it automatically tries the OTHER
+    provider so the pipeline doesn't break.
+  - Requires at least one of GEMINI_API_KEY / KIMI_API_KEY to be set.
 """
 
 import sys
@@ -45,7 +49,7 @@ def _generate_with_gemini(topic: str) -> str:
         raise ValueError("GEMINI_API_KEY not set. Add it to .env or Colab secrets.")
 
     genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel("gemini-2.0-flash")
+    model = genai.GenerativeModel("gemini-2.5-flash")
 
     prompt = SCRIPT_PROMPT_TEMPLATE.format(topic=topic)
     response = model.generate_content(prompt)
@@ -78,9 +82,29 @@ def _generate_with_kimi(topic: str) -> str:
     return data["choices"][0]["message"]["content"]
 
 
+def _parse_script_json(raw_text: str) -> dict:
+    """Clean and parse the model's raw text output into a script dict."""
+    import json
+    import re
+
+    cleaned = re.sub(r"^```json\s*|\s*```$", "", raw_text.strip(), flags=re.MULTILINE)
+    cleaned = cleaned.strip("`\n ")
+
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError as e:
+        raise ValueError(
+            f"Model did not return valid JSON. Raw output:\n{raw_text}"
+        ) from e
+
+
 def generate_script(topic: str, provider: str = None) -> dict:
     """
     Generate a structured script dict for the given topic.
+
+    Tries the preferred provider first. If it fails for ANY reason
+    (quota exceeded, missing key, network error, etc.), it automatically
+    falls back to the other provider so the pipeline doesn't break.
 
     Args:
         topic: The video topic/subject.
@@ -89,30 +113,31 @@ def generate_script(topic: str, provider: str = None) -> dict:
     Returns:
         dict with keys: title, hook, body (list), cta, estimated_duration_seconds
     """
-    import json
-    import re
+    preferred = (provider or SCRIPT_PROVIDER).lower()
+    fallback = "kimi" if preferred == "gemini" else "gemini"
 
-    provider = (provider or SCRIPT_PROVIDER).lower()
+    generators = {
+        "gemini": _generate_with_gemini,
+        "kimi": _generate_with_kimi,
+    }
 
-    if provider == "gemini":
-        raw_text = _generate_with_gemini(topic)
-    elif provider == "kimi":
-        raw_text = _generate_with_kimi(topic)
-    else:
-        raise ValueError(f"Unknown provider: {provider}. Use 'gemini' or 'kimi'.")
+    errors = {}
 
-    # Clean up in case the model wraps JSON in markdown fences
-    cleaned = re.sub(r"^```json\s*|\s*```$", "", raw_text.strip(), flags=re.MULTILINE)
-    cleaned = cleaned.strip("`\n ")
+    for name in (preferred, fallback):
+        try:
+            print(f"[script_generation] Trying provider: {name}...")
+            raw_text = generators[name](topic)
+            script = _parse_script_json(raw_text)
+            print(f"[script_generation] Success with provider: {name}")
+            return script
+        except Exception as e:
+            print(f"[script_generation] Provider '{name}' failed: {e}")
+            errors[name] = str(e)
 
-    try:
-        script = json.loads(cleaned)
-    except json.JSONDecodeError as e:
-        raise ValueError(
-            f"Model did not return valid JSON. Raw output:\n{raw_text}"
-        ) from e
-
-    return script
+    raise RuntimeError(
+        f"Both providers failed.\nGemini error: {errors.get('gemini')}\n"
+        f"Kimi error: {errors.get('kimi')}"
+    )
 
 
 if __name__ == "__main__":
