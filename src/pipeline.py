@@ -8,6 +8,8 @@ plugged in as they're built.
 """
 
 from src.script_generation import generate_script
+from src.voice_generation import generate_voice
+from src.visuals import generate_visuals
 
 
 def run_pipeline(topic: str):
@@ -16,13 +18,19 @@ def run_pipeline(topic: str):
     print("Script generated:")
     print(script)
 
+    print("[2/6] Generating narration audio (Bark)...")
+    audio_path = generate_voice(script)
+    print(f"Narration saved at: {audio_path}")
+
+    print("[3/6] Generating visuals (Pexels + fallback)...")
+    scenes = generate_visuals(script)
+    print(f"Generated {len(scenes)} scene clips.")
+
     # TODO: research (optional, if you want fact-checking/deeper research)
-    # TODO: voice_generation.generate_voice(script)
-    # TODO: visuals.generate_visuals(script)
-    # TODO: subtitles.generate_subtitles(voice_audio_path)
+    # TODO: subtitles.generate_subtitles(audio_path)
     # TODO: assembly.assemble_video(...)
 
-    return script
+    return {"script": script, "audio_path": audio_path, "scenes": scenes}
 
 
 if __name__ == "__main__":

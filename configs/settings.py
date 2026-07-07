@@ -27,6 +27,7 @@ def get_env(key: str, default: str = None):
 GEMINI_API_KEY = get_env("GEMINI_API_KEY")
 KIMI_API_KEY = get_env("KIMI_API_KEY")
 PERPLEXITY_API_KEY = get_env("PERPLEXITY_API_KEY")
+PEXELS_API_KEY = get_env("PEXELS_API_KEY")
 
 # --- Script generation provider: "gemini" or "kimi" ---
 SCRIPT_PROVIDER = get_env("SCRIPT_PROVIDER", "gemini")
