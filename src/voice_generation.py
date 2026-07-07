@@ -78,6 +78,21 @@ def generate_voice(
     Returns:
         The output_path where the audio was saved.
     """
+    # --- Compatibility patch for PyTorch 2.6+ ---
+    # PyTorch changed torch.load's default to weights_only=True, which breaks
+    # Bark's older checkpoint format. Bark's checkpoints are from a trusted
+    # source (suno-ai official releases), so we safely relax this default.
+    import torch
+    if not getattr(torch.load, "_bark_patched", False):
+        _original_torch_load = torch.load
+
+        def _patched_torch_load(*args, **kwargs):
+            kwargs.setdefault("weights_only", False)
+            return _original_torch_load(*args, **kwargs)
+
+        _patched_torch_load._bark_patched = True
+        torch.load = _patched_torch_load
+
     from bark import SAMPLE_RATE, generate_audio, preload_models
     from scipy.io.wavfile import write as write_wav
 
