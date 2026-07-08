@@ -44,10 +44,10 @@ using free-tier AI tools, running on Google Colab.
 - [x] Voice generation (Bark TTS) — requires GPU, run in Colab
 - [ ] Research module
 - [x] Visuals (Pexels stock clips + text-card fallback)
-- [ ] Subtitles (Whisper)
+- [x] Subtitles (Whisper)
 - [ ] Music mixing
-- [ ] Final assembly (FFmpeg)
-- [ ] Full pipeline orchestration
+- [x] Final assembly (moviepy, subtitles burned in + optional music)
+- [x] Full pipeline orchestration (script → voice → visuals → subtitles → final video)
 
 ## 📁 Folder Structure
 
