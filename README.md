@@ -37,6 +37,26 @@ using free-tier AI tools, running on Google Colab.
    run_pipeline(topic="Interesting history fact about ancient Rome")
    ```
 
+## 🚀 Setup (Kaggle — recommended, more RAM than Colab free tier)
+
+1. Create a new Kaggle Notebook.
+2. In Notebook settings (right panel): set **Accelerator = GPU T4 x2**,
+   and turn **Internet = ON** (required for git clone / pip install).
+3. Add your API keys via **Add-ons → Secrets** in the notebook menu:
+   `GEMINI_API_KEY`, `KIMI_API_KEY`, `PEXELS_API_KEY`
+4. Cell 1 (clone + install):
+   ```python
+   !git clone <your-repo-url>
+   %cd faceless-video-pipeline
+   !pip install -r requirements.txt
+   ```
+5. Cell 2 (run with your own topic):
+   ```python
+   from src.pipeline import run_pipeline
+   my_topic = input("Enter your video topic: ")
+   result = run_pipeline(topic=my_topic)
+   ```
+
 ## 🔧 Current Status
 
 - [x] Repo structure

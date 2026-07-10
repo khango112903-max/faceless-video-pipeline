@@ -1,19 +1,28 @@
 """
 Central settings for the pipeline.
-Reads from environment variables (.env locally, or Colab userdata/secrets).
+Reads from environment variables (.env locally, Colab userdata,
+or Kaggle Secrets — auto-detects whichever platform is running).
 """
 
 import os
 
 def get_env(key: str, default: str = None):
     """
-    Get a config value. Works both locally (.env via python-dotenv)
-    and in Google Colab (via userdata.get).
+    Get a config value. Works in Colab, Kaggle, or locally via .env.
     """
     # Try Colab secrets first
     try:
         from google.colab import userdata
         val = userdata.get(key)
+        if val:
+            return val
+    except Exception:
+        pass
+
+    # Try Kaggle secrets
+    try:
+        from kaggle_secrets import UserSecretsClient
+        val = UserSecretsClient().get_secret(key)
         if val:
             return val
     except Exception:
