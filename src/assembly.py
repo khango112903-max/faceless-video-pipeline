@@ -153,6 +153,7 @@ def assemble_video(
     # --- 3. Composite video + subtitles ---
     final_video = CompositeVideoClip([video_track] + subtitle_clips, size=(VIDEO_WIDTH, VIDEO_HEIGHT))
     final_video = final_video.set_duration(total_duration)
+    final_video = final_video.set_fps(FPS)  # ensure fps is never None for the writer
 
     # --- 4. Mix audio (narration + optional background music) ---
     if music_path and os.path.exists(music_path):
