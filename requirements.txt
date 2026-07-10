@@ -15,6 +15,9 @@ openai-whisper
 #          Fallback visuals use PIL + moviepy instead (see src/visuals.py)
 moviepy
 Pillow
+decorator==4.4.2
+# ^ pinned: newer decorator versions break moviepy 1.0.3's fps handling,
+#   causing "TypeError: must be real number, not NoneType" on export.
 
 # --- Audio/Video processing ---
 ffmpeg-python
