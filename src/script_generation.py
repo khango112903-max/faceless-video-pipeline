@@ -49,7 +49,7 @@ def _generate_with_gemini(topic: str) -> str:
         raise ValueError("GEMINI_API_KEY not set. Add it to .env or Colab secrets.")
 
     genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel("gemini-2.5-flash")
+    model = genai.GenerativeModel("gemini-3.5-flash")
 
     prompt = SCRIPT_PROMPT_TEMPLATE.format(topic=topic)
     response = model.generate_content(prompt)
