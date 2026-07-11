@@ -5,8 +5,12 @@ Turns a script into a list of visual "scenes" — one per narration segment
 (hook, each body sentence, cta) — each backed by a video clip.
 
 Strategy:
-  1. For each segment, search Pexels Videos for a relevant stock clip.
-  2. If Pexels finds nothing suitable, generate a simple text-card video
+  1. Use the AI-generated "visual_queries" from script_generation.py
+     (one topic-aware search query per segment, e.g. "Roman aqueduct stone
+     arches" instead of generic keywords) to search Pexels Videos.
+  2. If a segment has no AI query (older scripts) or nothing usable is
+     found, fall back to naive keyword extraction from the sentence.
+  3. If Pexels finds nothing at all, generate a simple text-card video
      (colored background + the sentence text) as a fallback using PIL +
      moviepy — no heavy dependencies required (Manim needs system-level
      libraries that are unreliable to install on Colab, so this is used
@@ -31,6 +35,7 @@ PEXELS_SEARCH_URL = "https://api.pexels.com/videos/search"
 
 # Common words to strip out when building a search query from a sentence,
 # so Pexels gets meaningful nouns/keywords rather than filler words.
+# Only used as a FALLBACK if no AI-generated visual_query is available.
 _STOPWORDS = {
     "the", "a", "an", "and", "or", "but", "is", "are", "was", "were", "of",
     "in", "on", "at", "to", "for", "with", "did", "you", "know", "that",
@@ -40,7 +45,7 @@ _STOPWORDS = {
 
 
 def _sentence_to_query(sentence: str, max_words: int = 6) -> str:
-    """Extract a short, keyword-focused search query from a sentence."""
+    """Fallback: extract a short, keyword-focused search query from a sentence."""
     words = re.findall(r"[A-Za-z']+", sentence.lower())
     keywords = [w for w in words if w not in _STOPWORDS]
     if not keywords:
@@ -48,10 +53,11 @@ def _sentence_to_query(sentence: str, max_words: int = 6) -> str:
     return " ".join(keywords[:max_words]) or sentence[:40]
 
 
-def _search_pexels_video(query: str) -> str | None:
+def _search_pexels_video(query: str, num_candidates: int = 5) -> str | None:
     """
     Search Pexels for a video matching the query.
     Returns a direct downloadable video file URL, or None if nothing found.
+    Picks the best-quality file from the top matching result.
     """
     if not PEXELS_API_KEY:
         return None
@@ -60,7 +66,7 @@ def _search_pexels_video(query: str) -> str | None:
         response = requests.get(
             PEXELS_SEARCH_URL,
             headers={"Authorization": PEXELS_API_KEY},
-            params={"query": query, "per_page": 3, "orientation": "landscape"},
+            params={"query": query, "per_page": num_candidates, "orientation": "landscape"},
             timeout=20,
         )
         response.raise_for_status()
@@ -70,10 +76,12 @@ def _search_pexels_video(query: str) -> str | None:
         return None
 
     videos = data.get("videos", [])
+    # Skip clips that are too short (< 2s) to avoid jarring cuts, prefer
+    # clips with a reasonable minimum duration.
+    videos = [v for v in videos if v.get("duration", 0) >= 2] or videos
     if not videos:
         return None
 
-    # Pick the first video's best-quality file close to our target resolution
     video_files = videos[0].get("video_files", [])
     if not video_files:
         return None
@@ -138,11 +146,13 @@ def generate_visuals(script: dict, output_dir: str = "outputs/clips") -> list:
     Generate one video clip per narration segment in the script.
 
     Args:
-        script: dict with keys hook, body (list), cta
+        script: dict with keys hook, body (list), cta, and optionally
+                visual_queries (list of AI-generated search queries, one
+                per segment, from script_generation.py)
         output_dir: folder to save downloaded/generated clips
 
     Returns:
-        List of dicts: [{"text": str, "clip_path": str, "source": "pexels"|"fallback"}, ...]
+        List of dicts: [{"text": str, "clip_path": str, "source": "pexels"|"fallback", "query": str}, ...]
         in narration order.
     """
     os.makedirs(output_dir, exist_ok=True)
@@ -153,10 +163,18 @@ def generate_visuals(script: dict, output_dir: str = "outputs/clips") -> list:
         segments.append(script["cta"])
     segments = [s.strip() for s in segments if s.strip()]
 
+    visual_queries = script.get("visual_queries") or []
+
     scenes = []
 
     for i, sentence in enumerate(segments):
-        query = _sentence_to_query(sentence)
+        # Prefer the AI-generated, topic-aware query. Fall back to naive
+        # keyword extraction only if it's missing (e.g. older scripts).
+        if i < len(visual_queries) and visual_queries[i].strip():
+            query = visual_queries[i].strip()
+        else:
+            query = _sentence_to_query(sentence)
+
         clip_path = os.path.join(output_dir, f"scene_{i:02d}.mp4")
 
         print(f"[visuals] Scene {i + 1}/{len(segments)} — query: '{query}'")
@@ -165,14 +183,14 @@ def generate_visuals(script: dict, output_dir: str = "outputs/clips") -> list:
         if video_url:
             try:
                 _download_video(video_url, clip_path)
-                scenes.append({"text": sentence, "clip_path": clip_path, "source": "pexels"})
+                scenes.append({"text": sentence, "clip_path": clip_path, "source": "pexels", "query": query})
                 print(f"  -> downloaded from Pexels: {clip_path}")
                 continue
             except Exception as e:
                 print(f"  -> Pexels download failed, using fallback: {e}")
 
         _make_fallback_clip(sentence, clip_path)
-        scenes.append({"text": sentence, "clip_path": clip_path, "source": "fallback"})
+        scenes.append({"text": sentence, "clip_path": clip_path, "source": "fallback", "query": query})
         print(f"  -> generated fallback text-card: {clip_path}")
 
     return scenes
@@ -186,6 +204,12 @@ if __name__ == "__main__":
             "The design dates back over two thousand years.",
         ],
         "cta": "Follow for more surprising history facts.",
+        "visual_queries": [
+            "ancient Roman temple entrance",
+            "ancient bronze coin closeup",
+            "Roman ruins stone columns",
+            "Rome cityscape aerial ancient",
+        ],
     }
     result = generate_visuals(test_script)
     for r in result:

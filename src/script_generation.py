@@ -19,7 +19,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from configs.settings import GEMINI_API_KEY, KIMI_API_KEY, SCRIPT_PROVIDER
 
 
-SCRIPT_PROMPT_TEMPLATE = """You are a scriptwriter for a faceless YouTube channel about facts, motivation, and history.
+SCRIPT_PROMPT_TEMPLATE = """You are a scriptwriter and visual director for a faceless YouTube channel about facts, motivation, and history.
 
 Write a video script for this topic: "{topic}"
 
@@ -29,16 +29,33 @@ Structure it as JSON with these exact keys:
   "hook": "1-2 punchy sentences to grab attention in the first 3 seconds",
   "body": ["sentence 1", "sentence 2", "..."],
   "cta": "short call-to-action for the end (like/subscribe/follow)",
-  "estimated_duration_seconds": 60
+  "estimated_duration_seconds": 60,
+  "visual_queries": ["query for hook", "query for body sentence 1", "query for body sentence 2", "...", "query for cta"]
 }}
 
-Rules:
+Rules for the script:
 - Keep total spoken length around 45-75 seconds when read aloud.
 - Simple, clear, engaging spoken language (not written/formal).
-- No emojis, no markdown, only valid JSON.
 - Body should be broken into short sentences (good for subtitle timing).
 
-Return ONLY the JSON object, nothing else.
+Rules for "visual_queries" (VERY IMPORTANT):
+- There must be EXACTLY one visual_queries entry per narration segment, in the
+  same order as: [hook, body[0], body[1], ..., body[last], cta].
+- Each entry is a 3-5 word STOCK FOOTAGE search query for a real, professional
+  stock video site (like Pexels), describing a concrete, specific, filmable
+  visual that matches what that sentence is about.
+- Be concrete and specific: use real places, objects, materials, actions, or
+  historical subjects mentioned or implied by the sentence (e.g. "Roman
+  aqueduct stone arches", "volcanic ash texture close up", "ancient
+  Colosseum ruins aerial"), NOT vague or abstract terms (avoid words like
+  "history", "concept", "idea", "surprising").
+- Do NOT use generic queries like "person talking" or "man face" unless the
+  sentence is specifically about a named historical figure.
+- Always anchor each query to the overall topic ("{topic}") even if the
+  sentence itself is a short transition (e.g. for a transition sentence,
+  still describe a relevant establishing visual for the topic).
+
+No emojis, no markdown, only valid JSON. Return ONLY the JSON object, nothing else.
 """
 
 
