@@ -22,6 +22,12 @@ decorator==4.4.2
 # --- Audio/Video processing ---
 ffmpeg-python
 
+# --- Avatar Lip-Sync (Wav2Lip) — optional, only needed if using avatar_photo ---
+huggingface_hub
+opencv-python
+librosa==0.9.1
+numba
+
 # --- Utilities ---
 python-dotenv
 tqdm

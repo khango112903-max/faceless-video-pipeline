@@ -26,25 +26,51 @@ def _find_music_file():
     return None
 
 
-def run_pipeline(topic: str):
-    print(f"[1/5] Generating script for topic: {topic}")
+def run_pipeline(topic: str, avatar_photo: str = None):
+    """
+    Run the full pipeline: script -> voice -> visuals -> subtitles -> assembly.
+
+    Args:
+        topic: the video topic/subject
+        avatar_photo: optional path to a photo. If provided, a lip-synced
+            talking-head overlay (Wav2Lip) is generated from this photo and
+            the narration audio, and shown as a small corner box in the
+            final video (news-anchor style). Requires a GPU and downloads
+            a ~436MB model on first use.
+    """
+    total_steps = 6 if avatar_photo else 5
+    step = 1
+
+    print(f"[{step}/{total_steps}] Generating script for topic: {topic}")
     script = generate_script(topic)
     print("Script generated:")
     print(script)
+    step += 1
 
-    print("[2/5] Generating narration audio (Bark)...")
+    print(f"[{step}/{total_steps}] Generating narration audio (Bark)...")
     audio_path = generate_voice(script)
     print(f"Narration saved at: {audio_path}")
+    step += 1
 
-    print("[3/5] Generating visuals (Pexels + fallback)...")
+    print(f"[{step}/{total_steps}] Generating visuals (Pexels + fallback)...")
     scenes = generate_visuals(script)
     print(f"Generated {len(scenes)} scene clips.")
+    step += 1
 
-    print("[4/5] Generating subtitles (Whisper)...")
+    print(f"[{step}/{total_steps}] Generating subtitles (Whisper)...")
     subtitle_result = generate_subtitles(audio_path)
     print(f"Subtitles saved at: {subtitle_result['srt_path']}")
+    step += 1
 
-    print("[5/5] Assembling final video...")
+    avatar_path = None
+    if avatar_photo:
+        print(f"[{step}/{total_steps}] Generating avatar lip-sync (Wav2Lip)...")
+        from src.avatar import generate_avatar_lipsync
+        avatar_path = generate_avatar_lipsync(avatar_photo, audio_path)
+        print(f"Avatar video saved at: {avatar_path}")
+        step += 1
+
+    print(f"[{step}/{total_steps}] Assembling final video...")
     music_path = _find_music_file()
     if music_path:
         print(f"Using background music: {music_path}")
@@ -56,6 +82,7 @@ def run_pipeline(topic: str):
         audio_path=audio_path,
         subtitle_segments=subtitle_result["segments"],
         music_path=music_path,
+        avatar_clip_path=avatar_path,
     )
     print(f"Final video saved at: {final_path}")
 
@@ -64,6 +91,7 @@ def run_pipeline(topic: str):
         "audio_path": audio_path,
         "scenes": scenes,
         "subtitles": subtitle_result,
+        "avatar_path": avatar_path,
         "final_video_path": final_path,
     }
 

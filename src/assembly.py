@@ -90,6 +90,7 @@ def assemble_video(
     audio_path: str,
     subtitle_segments: list,
     music_path: str = None,
+    avatar_clip_path: str = None,
     output_path: str = "outputs/final_video.mp4",
     tmp_dir: str = "outputs/tmp",
 ) -> str:
@@ -101,6 +102,8 @@ def assemble_video(
         audio_path: path to the narration .wav from src/voice_generation.py
         subtitle_segments: list of {"start", "end", "text"} from src/subtitles.py
         music_path: optional path to a background music file
+        avatar_clip_path: optional path to a lip-synced talking-head video
+            (from src/avatar.py) to overlay as a small corner box
         output_path: where to save the final .mp4
         tmp_dir: scratch folder for temporary subtitle images
 
@@ -150,8 +153,27 @@ def assemble_video(
         )
         subtitle_clips.append(sub_clip)
 
-    # --- 3. Composite video + subtitles ---
-    final_video = CompositeVideoClip([video_track] + subtitle_clips, size=(VIDEO_WIDTH, VIDEO_HEIGHT))
+    # --- 2b. Avatar overlay (optional, lip-synced talking head, top-right corner) ---
+    avatar_layer = []
+    if avatar_clip_path and os.path.exists(avatar_clip_path):
+        print("[assembly] Adding avatar overlay...")
+        avatar_width = int(VIDEO_WIDTH * 0.28)
+        avatar_clip = VideoFileClip(avatar_clip_path).without_audio()
+        avatar_clip = avatar_clip.resize(width=avatar_width)
+
+        if avatar_clip.duration < total_duration:
+            loops_needed = math.ceil(total_duration / avatar_clip.duration)
+            avatar_clip = concatenate_videoclips([avatar_clip] * loops_needed)
+        avatar_clip = avatar_clip.subclip(0, total_duration)
+
+        margin = 40
+        avatar_clip = avatar_clip.set_position((VIDEO_WIDTH - avatar_width - margin, margin))
+        avatar_layer = [avatar_clip]
+
+    # --- 3. Composite video + avatar + subtitles ---
+    final_video = CompositeVideoClip(
+        [video_track] + avatar_layer + subtitle_clips, size=(VIDEO_WIDTH, VIDEO_HEIGHT)
+    )
     final_video = final_video.set_duration(total_duration)
     final_video = final_video.set_fps(FPS)  # ensure fps is never None for the writer
 
