@@ -172,18 +172,45 @@ def assemble_video(
     final_video = final_video.set_audio(final_audio)
 
     # --- 5. Export ---
+    # NOTE: We bypass clip.write_videofile() here and call moviepy's internal
+    # writer functions directly. Newer versions of the `decorator` package
+    # break moviepy 1.0.3's fps-resolution wrapper (causes
+    # "TypeError: must be real number, not NoneType"), and pip version
+    # pinning isn't always reliable across Colab/Kaggle sessions. Calling
+    # the internal writers directly sidesteps the broken decorator entirely.
     print(f"[assembly] Writing final video to {output_path}...")
-    final_video.write_videofile(
-        output_path,
-        fps=FPS,
-        codec="libx264",
-        audio_codec="aac",
-        threads=4,
-        logger=None,
-    )
+    _safe_write_videofile(final_video, output_path, fps=FPS, codec="libx264",
+                           audio_codec="aac", threads=4)
 
     print("[assembly] Done!")
     return output_path
+
+
+def _safe_write_videofile(clip, output_path, fps, codec="libx264", audio_codec="aac", threads=4):
+    """
+    Write a video file bypassing moviepy's write_videofile() wrapper,
+    which can break due to a decorator-library version incompatibility
+    that causes fps to be silently passed as None.
+    """
+    from moviepy.video.io.ffmpeg_writer import ffmpeg_write_video
+
+    temp_audio_path = output_path.rsplit(".", 1)[0] + "_TEMP_audio.m4a"
+
+    if clip.audio is not None:
+        clip.audio.write_audiofile(
+            temp_audio_path, codec=audio_codec, fps=44100,
+            write_logfile=False, verbose=False, logger=None,
+        )
+    else:
+        temp_audio_path = None
+
+    ffmpeg_write_video(
+        clip, output_path, fps, codec=codec,
+        audiofile=temp_audio_path, threads=threads, logger=None,
+    )
+
+    if temp_audio_path and os.path.exists(temp_audio_path):
+        os.remove(temp_audio_path)
 
 
 if __name__ == "__main__":
