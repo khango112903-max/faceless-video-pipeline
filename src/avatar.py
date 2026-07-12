@@ -86,6 +86,37 @@ def _patch_numpy2_incompatibilities():
         print(f"[avatar] Patched numpy 2.x incompatibilities in {patched_count} file(s)")
 
 
+def _patch_basicsr_torchvision_compat():
+    """
+    basicsr (a gfpgan dependency, imported unconditionally by SadTalker's
+    face_enhancer module even when the enhancer isn't used) imports
+    `torchvision.transforms.functional_tensor`, which was removed in newer
+    torchvision versions (moved into `functional_tensor` -> `functional`).
+    Patch the installed basicsr package directly to fix this.
+    """
+    try:
+        import basicsr
+    except ImportError:
+        return
+
+    target_file = os.path.join(os.path.dirname(basicsr.__file__), "data", "degradations.py")
+    if not os.path.exists(target_file):
+        return
+
+    with open(target_file, "r", encoding="utf-8", errors="ignore") as f:
+        content = f.read()
+
+    patched = content.replace(
+        "from torchvision.transforms.functional_tensor import rgb_to_grayscale",
+        "from torchvision.transforms.functional import rgb_to_grayscale",
+    )
+
+    if patched != content:
+        with open(target_file, "w", encoding="utf-8") as f:
+            f.write(patched)
+        print("[avatar] Patched basicsr/torchvision compatibility")
+
+
 def _ensure_sadtalker_installed():
     """Clone the SadTalker repo and download required model checkpoints, if missing."""
     if not os.path.isdir(SADTALKER_DIR):
@@ -96,6 +127,7 @@ def _ensure_sadtalker_installed():
         )
 
     _patch_numpy2_incompatibilities()
+    _patch_basicsr_torchvision_compat()
 
     if not os.path.isdir(CHECKPOINTS_DIR) or not os.listdir(CHECKPOINTS_DIR):
         print("[avatar] Downloading SadTalker checkpoints (~4GB, first time only)...")
