@@ -41,23 +41,49 @@ _HF_SPACE_REPO = "vinthony/SadTalker"
 
 def _patch_numpy2_incompatibilities():
     """
-    SadTalker's code was written for numpy 1.x and uses attributes removed
-    in numpy 2.x (e.g. np.VisibleDeprecationWarning). This patches known
-    incompatible lines directly in the cloned source, so it works
-    regardless of which numpy version ends up installed.
+    SadTalker's code was written for numpy 1.x and uses several attributes
+    that were removed in numpy 2.x (e.g. np.VisibleDeprecationWarning,
+    np.float, np.int, np.bool, np.object, np.str, np.complex). Rather than
+    downgrading numpy globally (which breaks scipy/Bark, which need
+    numpy 2.x), we patch these deprecated references directly in the
+    cloned source so everything can share one numpy version.
     """
-    target_file = os.path.join(SADTALKER_DIR, "src", "face3d", "util", "preprocess.py")
-    if not os.path.exists(target_file):
-        return
+    import re
 
-    with open(target_file, "r") as f:
-        content = f.read()
+    # (pattern, replacement) — applied across every .py file in the repo
+    replacements = [
+        (r"\bnp\.VisibleDeprecationWarning\b", "DeprecationWarning"),
+        (r"\bnp\.float\b(?!\d|_)", "float"),
+        (r"\bnp\.int\b(?!\d|_|e)", "int"),
+        (r"\bnp\.bool\b(?!\d|_)", "bool"),
+        (r"\bnp\.object\b(?!\d|_)", "object"),
+        (r"\bnp\.str\b(?!\d|_|i)", "str"),
+        (r"\bnp\.complex\b(?!\d|_)", "complex"),
+    ]
 
-    patched = content.replace(
-        'warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)',
-        '# patched for numpy 2.x compatibility (VisibleDeprecationWarning removed)\n'
-        'warnings.filterwarnings("ignore", category=DeprecationWarning)',
-    )
+    patched_count = 0
+    for root, _dirs, files in os.walk(SADTALKER_DIR):
+        for fname in files:
+            if not fname.endswith(".py"):
+                continue
+            fpath = os.path.join(root, fname)
+            try:
+                with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
+                    content = f.read()
+            except Exception:
+                continue
+
+            new_content = content
+            for pattern, repl in replacements:
+                new_content = re.sub(pattern, repl, new_content)
+
+            if new_content != content:
+                with open(fpath, "w", encoding="utf-8") as f:
+                    f.write(new_content)
+                patched_count += 1
+
+    if patched_count:
+        print(f"[avatar] Patched numpy 2.x incompatibilities in {patched_count} file(s)")
 
     if patched != content:
         with open(target_file, "w") as f:
