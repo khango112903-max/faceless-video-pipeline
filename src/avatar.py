@@ -91,15 +91,21 @@ def _patch_basicsr_torchvision_compat():
     basicsr (a gfpgan dependency, imported unconditionally by SadTalker's
     face_enhancer module even when the enhancer isn't used) imports
     `torchvision.transforms.functional_tensor`, which was removed in newer
-    torchvision versions (moved into `functional_tensor` -> `functional`).
-    Patch the installed basicsr package directly to fix this.
+    torchvision versions. Patch the installed basicsr package directly.
+
+    IMPORTANT: we locate the file via importlib.util.find_spec() instead of
+    `import basicsr` — actually importing basicsr executes its __init__.py,
+    which triggers this exact same crash before we get a chance to patch it.
+    find_spec() locates the file without executing any of its code.
     """
-    try:
-        import basicsr
-    except ImportError:
+    import importlib.util
+
+    spec = importlib.util.find_spec("basicsr")
+    if spec is None or not spec.submodule_search_locations:
         return
 
-    target_file = os.path.join(os.path.dirname(basicsr.__file__), "data", "degradations.py")
+    basicsr_dir = list(spec.submodule_search_locations)[0]
+    target_file = os.path.join(basicsr_dir, "data", "degradations.py")
     if not os.path.exists(target_file):
         return
 
