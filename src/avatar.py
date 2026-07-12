@@ -123,6 +123,46 @@ def _patch_basicsr_torchvision_compat():
         print("[avatar] Patched basicsr/torchvision compatibility")
 
 
+_TORCH_LOAD_SHIM_MARKER = "_patched_weights_only"
+
+_TORCH_LOAD_SHIM = '''import torch as _torch_patch_shim
+if not getattr(_torch_patch_shim.load, "_patched_weights_only", False):
+    _orig_torch_load_shim = _torch_patch_shim.load
+    def _patched_torch_load_shim(*a, **kw):
+        kw.setdefault("weights_only", False)
+        return _orig_torch_load_shim(*a, **kw)
+    _patched_torch_load_shim._patched_weights_only = True
+    _torch_patch_shim.load = _patched_torch_load_shim
+# --- end torch.load patch ---
+
+'''
+
+
+def _patch_torch_load_weights_only():
+    """
+    Newer PyTorch defaults torch.load's `weights_only` to True, which
+    breaks loading SadTalker's older pretrained checkpoints (same class of
+    issue we hit with Bark). Since SadTalker runs as a subprocess, we
+    inject a small shim at the very top of inference.py that monkeypatches
+    torch.load for that process, defaulting weights_only=False (safe here
+    since these are trusted, official SadTalker checkpoints).
+    """
+    target_file = os.path.join(SADTALKER_DIR, "inference.py")
+    if not os.path.exists(target_file):
+        return
+
+    with open(target_file, "r", encoding="utf-8", errors="ignore") as f:
+        content = f.read()
+
+    if _TORCH_LOAD_SHIM_MARKER in content:
+        return  # already patched
+
+    with open(target_file, "w", encoding="utf-8") as f:
+        f.write(_TORCH_LOAD_SHIM + content)
+
+    print("[avatar] Patched torch.load weights_only compatibility")
+
+
 def _ensure_sadtalker_installed():
     """Clone the SadTalker repo and download required model checkpoints, if missing."""
     if not os.path.isdir(SADTALKER_DIR):
@@ -134,6 +174,7 @@ def _ensure_sadtalker_installed():
 
     _patch_numpy2_incompatibilities()
     _patch_basicsr_torchvision_compat()
+    _patch_torch_load_weights_only()
 
     if not os.path.isdir(CHECKPOINTS_DIR) or not os.listdir(CHECKPOINTS_DIR):
         print("[avatar] Downloading SadTalker checkpoints (~4GB, first time only)...")
