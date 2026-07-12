@@ -39,6 +39,32 @@ CHECKPOINTS_DIR = os.path.join(SADTALKER_DIR, "checkpoints")
 _HF_SPACE_REPO = "vinthony/SadTalker"
 
 
+def _patch_numpy2_incompatibilities():
+    """
+    SadTalker's code was written for numpy 1.x and uses attributes removed
+    in numpy 2.x (e.g. np.VisibleDeprecationWarning). This patches known
+    incompatible lines directly in the cloned source, so it works
+    regardless of which numpy version ends up installed.
+    """
+    target_file = os.path.join(SADTALKER_DIR, "src", "face3d", "util", "preprocess.py")
+    if not os.path.exists(target_file):
+        return
+
+    with open(target_file, "r") as f:
+        content = f.read()
+
+    patched = content.replace(
+        'warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)',
+        '# patched for numpy 2.x compatibility (VisibleDeprecationWarning removed)\n'
+        'warnings.filterwarnings("ignore", category=DeprecationWarning)',
+    )
+
+    if patched != content:
+        with open(target_file, "w") as f:
+            f.write(patched)
+        print("[avatar] Patched numpy 2.x incompatibility in preprocess.py")
+
+
 def _ensure_sadtalker_installed():
     """Clone the SadTalker repo and download required model checkpoints, if missing."""
     if not os.path.isdir(SADTALKER_DIR):
@@ -47,6 +73,8 @@ def _ensure_sadtalker_installed():
             ["git", "clone", "https://github.com/OpenTalker/SadTalker.git", SADTALKER_DIR],
             check=True,
         )
+
+    _patch_numpy2_incompatibilities()
 
     if not os.path.isdir(CHECKPOINTS_DIR) or not os.listdir(CHECKPOINTS_DIR):
         print("[avatar] Downloading SadTalker checkpoints (~4GB, first time only)...")
