@@ -36,7 +36,8 @@ import subprocess
 SADTALKER_DIR = "SadTalker"
 CHECKPOINTS_DIR = os.path.join(SADTALKER_DIR, "checkpoints")
 
-_HF_SPACE_REPO = "vinthony/SadTalker"
+_HF_SPACE_REPO = "barisaydin/sadtalker"
+_HF_SPACE_REPO_TYPE = "model"
 
 
 def _patch_numpy2_incompatibilities():
@@ -201,7 +202,7 @@ def _ensure_sadtalker_installed():
 
         downloaded_dir = snapshot_download(
             repo_id=_HF_SPACE_REPO,
-            repo_type="space",
+            repo_type=_HF_SPACE_REPO_TYPE,
             allow_patterns=["checkpoints/**"],
             force_download=True,
         )
