@@ -85,11 +85,6 @@ def _patch_numpy2_incompatibilities():
     if patched_count:
         print(f"[avatar] Patched numpy 2.x incompatibilities in {patched_count} file(s)")
 
-    if patched != content:
-        with open(target_file, "w") as f:
-            f.write(patched)
-        print("[avatar] Patched numpy 2.x incompatibility in preprocess.py")
-
 
 def _ensure_sadtalker_installed():
     """Clone the SadTalker repo and download required model checkpoints, if missing."""
