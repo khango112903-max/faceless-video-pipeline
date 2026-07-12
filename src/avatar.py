@@ -163,6 +163,21 @@ def _patch_torch_load_weights_only():
     print("[avatar] Patched torch.load weights_only compatibility")
 
 
+def _checkpoints_look_valid():
+    """
+    Check that the critical face-reconstruction checkpoint (epoch_20.pth)
+    exists and is a reasonable size (~100MB+). This file has been seen to
+    end up truncated/corrupted after an interrupted earlier download,
+    which then causes a confusing "unpickling stack underflow" error much
+    later during inference instead of a clear download error up front.
+    """
+    critical_file = os.path.join(CHECKPOINTS_DIR, "epoch_20.pth")
+    if not os.path.exists(critical_file):
+        return False
+    size_mb = os.path.getsize(critical_file) / (1024 * 1024)
+    return size_mb > 50  # real file is ~100MB+; a truncated one will be tiny
+
+
 def _ensure_sadtalker_installed():
     """Clone the SadTalker repo and download required model checkpoints, if missing."""
     if not os.path.isdir(SADTALKER_DIR):
@@ -176,18 +191,30 @@ def _ensure_sadtalker_installed():
     _patch_basicsr_torchvision_compat()
     _patch_torch_load_weights_only()
 
-    if not os.path.isdir(CHECKPOINTS_DIR) or not os.listdir(CHECKPOINTS_DIR):
-        print("[avatar] Downloading SadTalker checkpoints (~4GB, first time only)...")
+    if not _checkpoints_look_valid():
+        print("[avatar] Downloading SadTalker checkpoints (~4GB)...")
+        if os.path.isdir(CHECKPOINTS_DIR):
+            print("[avatar] Removing incomplete/corrupted checkpoints from a previous run...")
+            shutil.rmtree(CHECKPOINTS_DIR)
+
         from huggingface_hub import snapshot_download
 
         downloaded_dir = snapshot_download(
             repo_id=_HF_SPACE_REPO,
             repo_type="space",
             allow_patterns=["checkpoints/**"],
+            force_download=True,
         )
         src_checkpoints = os.path.join(downloaded_dir, "checkpoints")
         os.makedirs(CHECKPOINTS_DIR, exist_ok=True)
         shutil.copytree(src_checkpoints, CHECKPOINTS_DIR, dirs_exist_ok=True)
+
+        if not _checkpoints_look_valid():
+            raise RuntimeError(
+                "SadTalker checkpoint download completed but epoch_20.pth still "
+                "looks invalid/too small. The Hugging Face mirror may have changed "
+                "— check https://huggingface.co/spaces/vinthony/SadTalker/tree/main/checkpoints"
+            )
 
 
 def generate_avatar_video(
