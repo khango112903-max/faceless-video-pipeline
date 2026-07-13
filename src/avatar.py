@@ -241,6 +241,20 @@ def generate_avatar_video(
     result_dir = os.path.join("outputs", "sadtalker_raw")
     os.makedirs(result_dir, exist_ok=True)
 
+    # Re-save the photo as a clean, standard JPEG. This fixes a common class
+    # of failures in SadTalker/face-detection preprocessing caused by EXIF
+    # rotation tags, CMYK color mode, alpha channels, or unusual encodings
+    # in the original upload — regardless of the original file's extension.
+    from PIL import Image, ImageOps
+
+    clean_photo_path = os.path.join("outputs", "avatar_source_photo.jpg")
+    img = Image.open(photo_path)
+    img = ImageOps.exif_transpose(img)  # apply any EXIF rotation, then drop it
+    img = img.convert("RGB")
+    img.save(clean_photo_path, "JPEG", quality=95)
+    photo_path = clean_photo_path
+    print(f"[avatar] Re-saved photo as clean JPEG: {clean_photo_path}")
+
     abs_photo = os.path.abspath(photo_path)
     abs_audio = os.path.abspath(audio_path)
     abs_result_dir = os.path.abspath(result_dir)
