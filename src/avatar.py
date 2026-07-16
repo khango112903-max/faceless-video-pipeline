@@ -60,6 +60,14 @@ def _patch_numpy2_incompatibilities():
         (r"\bnp\.object\b(?!\d|_)", "object"),
         (r"\bnp\.str\b(?!\d|_|i)", "str"),
         (r"\bnp\.complex\b(?!\d|_)", "complex"),
+        # numpy 2.x raises a hard error (used to just warn) when building an
+        # array from a mix of plain scalars and array-like elements (ragged
+        # shape). SadTalker's align_img() does exactly this; cast t[0]/t[1]
+        # to plain floats first so the array is a clean, uniform shape.
+        (
+            r"np\.array\(\[w0, h0, s, t\[0\], t\[1\]\]\)",
+            "np.array([w0, h0, s, float(t[0]), float(t[1])])",
+        ),
     ]
 
     patched_count = 0
