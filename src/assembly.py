@@ -233,11 +233,17 @@ def assemble_video(
     return output_path
 
 
-def _safe_write_videofile(clip, output_path, fps, codec="libx264", audio_codec="aac", threads=4):
+def _safe_write_videofile(clip, output_path, fps, codec="libx264", audio_codec="aac",
+                           threads=4, preset="veryfast"):
     """
     Write a video file bypassing moviepy's write_videofile() wrapper,
     which can break due to a decorator-library version incompatibility
     that causes fps to be silently passed as None.
+
+    preset="veryfast" trades a little file-size efficiency for a large
+    speedup vs the default "medium" preset — this matters a lot on CPU-only
+    encoding, which is what these Kaggle/Colab environments use for the
+    final ffmpeg write step (GPU is only used for the AI models, not encoding).
     """
     from moviepy.video.io.ffmpeg_writer import ffmpeg_write_video
 
@@ -252,7 +258,7 @@ def _safe_write_videofile(clip, output_path, fps, codec="libx264", audio_codec="
         temp_audio_path = None
 
     ffmpeg_write_video(
-        clip, output_path, fps, codec=codec,
+        clip, output_path, fps, codec=codec, preset=preset,
         audiofile=temp_audio_path, threads=threads, logger=None,
     )
 

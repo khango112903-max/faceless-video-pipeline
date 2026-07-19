@@ -273,7 +273,7 @@ def generate_avatar_video(
         "--source_image", abs_photo,
         "--result_dir", abs_result_dir,
         "--still",
-        "--preprocess", "crop",
+        "--preprocess", "full",
     ]
 
     print("[avatar] Running SadTalker inference (this can take several minutes)...")
