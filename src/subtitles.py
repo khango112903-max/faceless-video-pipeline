@@ -45,9 +45,13 @@ def generate_subtitles(audio_path: str, output_dir: str = "outputs", model_size:
         dict with "srt_path" and "segments" (list of {start, end, text})
     """
     import whisper
+    import torch
+
+    # Same GPU as Bark (GPU 0) — SadTalker uses GPU 1 (see src/avatar.py).
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
     print(f"[subtitles] Loading Whisper model ({model_size})...")
-    model = whisper.load_model(model_size)
+    model = whisper.load_model(model_size, device=device)
 
     print(f"[subtitles] Transcribing {audio_path}...")
     result = model.transcribe(audio_path)

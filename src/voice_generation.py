@@ -96,6 +96,12 @@ def generate_voice(
     from bark import SAMPLE_RATE, generate_audio, preload_models
     from scipy.io.wavfile import write as write_wav
 
+    # Explicitly use GPU 0 for Bark (SadTalker, if used, runs on GPU 1 via
+    # src/avatar.py — keeps each heavy model in its own dedicated VRAM pool
+    # when more than one GPU is available).
+    if torch.cuda.is_available():
+        torch.cuda.set_device(0)
+
     # Load Bark models into memory (first call downloads weights, ~ a few GB)
     preload_models()
 

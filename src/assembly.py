@@ -29,11 +29,19 @@ _SUBTITLE_BAND_HEIGHT = 220  # height of the transparent strip subtitles sit in
 def _fit_clip_to_duration(clip, duration: float):
     """Loop (if too short) or trim (if too long) a clip to an exact duration,
     and resize/crop it to the target video resolution."""
-    from moviepy.editor import concatenate_videoclips
+    from moviepy.editor import CompositeVideoClip
 
     if clip.duration < duration:
+        # Loop by layering time-shifted copies in a composite (more
+        # reliable in this moviepy version than concatenate_videoclips —
+        # see the note in assemble_video() for why we avoid it).
         loops_needed = math.ceil(duration / clip.duration)
-        clip = concatenate_videoclips([clip] * loops_needed)
+        loop_layers = []
+        t = 0.0
+        for _ in range(loops_needed):
+            loop_layers.append(clip.set_start(t))
+            t += clip.duration
+        clip = CompositeVideoClip(loop_layers, size=(clip.w, clip.h))
 
     clip = clip.subclip(0, duration)
     clip = clip.without_audio()
@@ -130,12 +138,24 @@ def assemble_video(
     print(f"[assembly] Building visual track from {len(scenes)} scene(s)...")
     per_scene_duration = total_duration / max(len(scenes), 1)
 
-    fitted_clips = []
+    # NOTE: We deliberately do NOT use concatenate_videoclips() here. In this
+    # moviepy version it has proven unreliable when clips have differing
+    # source fps/resolution (common with mixed Pexels + SadTalker clips) —
+    # it can silently collapse the sequence down to only the first few
+    # clips' worth of visible content. Instead we explicitly place each
+    # fitted clip at its own start time within one CompositeVideoClip, the
+    # same reliable approach already used for the subtitle overlays below.
+    video_layers = []
+    current_t = 0.0
     for scene in scenes:
         raw_clip = VideoFileClip(scene["clip_path"])
-        fitted_clips.append(_fit_clip_to_duration(raw_clip, per_scene_duration))
+        fitted = _fit_clip_to_duration(raw_clip, per_scene_duration)
+        fitted = fitted.set_start(current_t).set_duration(per_scene_duration)
+        video_layers.append(fitted)
+        current_t += per_scene_duration
 
-    video_track = concatenate_videoclips(fitted_clips, method="compose")
+    video_track = CompositeVideoClip(video_layers, size=(VIDEO_WIDTH, VIDEO_HEIGHT))
+    video_track = video_track.set_duration(total_duration)
 
     # --- 2. Build subtitle overlays ---
     print(f"[assembly] Rendering {len(subtitle_segments)} subtitle overlay(s)...")
@@ -163,7 +183,12 @@ def assemble_video(
 
         if avatar_clip.duration < total_duration:
             loops_needed = math.ceil(total_duration / avatar_clip.duration)
-            avatar_clip = concatenate_videoclips([avatar_clip] * loops_needed)
+            loop_layers = []
+            t = 0.0
+            for _ in range(loops_needed):
+                loop_layers.append(avatar_clip.set_start(t))
+                t += avatar_clip.duration
+            avatar_clip = CompositeVideoClip(loop_layers, size=(avatar_clip.w, avatar_clip.h))
         avatar_clip = avatar_clip.subclip(0, total_duration)
 
         margin = 40

@@ -277,7 +277,26 @@ def generate_avatar_video(
     ]
 
     print("[avatar] Running SadTalker inference (this can take several minutes)...")
-    result = subprocess.run(cmd, cwd=SADTALKER_DIR, capture_output=True, text=True)
+
+    # Run SadTalker on GPU 1 (if a second GPU is available), keeping it
+    # isolated from GPU 0 (used by Bark/Whisper). This gives each heavy
+    # model its own dedicated VRAM pool instead of sharing one GPU's
+    # memory across the whole pipeline.
+    env = os.environ.copy()
+    gpu_count = 0
+    try:
+        import torch
+        gpu_count = torch.cuda.device_count()
+    except Exception:
+        pass
+
+    if gpu_count > 1:
+        env["CUDA_VISIBLE_DEVICES"] = "1"
+        print("[avatar] Using GPU 1 for SadTalker (GPU 0 reserved for Bark/Whisper)")
+    elif gpu_count == 1:
+        env["CUDA_VISIBLE_DEVICES"] = "0"
+
+    result = subprocess.run(cmd, cwd=SADTALKER_DIR, capture_output=True, text=True, env=env)
 
     if result.returncode != 0:
         print("--- SadTalker stdout (tail) ---")
