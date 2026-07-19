@@ -37,9 +37,9 @@ def _splice_avatar_into_one_scene(avatar_full_path, audio_path, scenes, scene_in
     of a video that was generated against the full audio), instead of a
     persistent overlay across the whole video.
     """
-    from moviepy.editor import VideoFileClip, AudioFileClip
+    from moviepy.editor import VideoFileClip, AudioFileClip, CompositeVideoClip
     from src.assembly import _safe_write_videofile
-    from configs.settings import FPS
+    from configs.settings import FPS, VIDEO_WIDTH, VIDEO_HEIGHT
 
     total_duration = AudioFileClip(audio_path).duration
     n = len(scenes)
@@ -57,8 +57,20 @@ def _splice_avatar_into_one_scene(avatar_full_path, audio_path, scenes, scene_in
     end = min(end, avatar_clip.duration)
     sliced = avatar_clip.subclip(start, end).without_audio()
 
+    # Letterbox (fit whole frame, pad with black bars) instead of cropping.
+    # The source photo's aspect ratio rarely matches the video's 16:9 —
+    # cropping to fill would cut off the top of the head or the body.
+    # Letterboxing keeps the ENTIRE person visible.
+    scale = min(VIDEO_WIDTH / sliced.w, VIDEO_HEIGHT / sliced.h)
+    resized = sliced.resize(scale)
+    letterboxed = CompositeVideoClip(
+        [resized.set_position("center")],
+        size=(VIDEO_WIDTH, VIDEO_HEIGHT),
+        bg_color=(0, 0, 0),
+    ).set_duration(resized.duration)
+
     sliced_path = os.path.join("outputs", "clips", f"scene_{scene_index:02d}_avatar.mp4")
-    _safe_write_videofile(sliced, sliced_path, fps=FPS, codec="libx264", threads=4)
+    _safe_write_videofile(letterboxed, sliced_path, fps=FPS, codec="libx264", threads=4)
 
     scenes[scene_index]["clip_path"] = sliced_path
     scenes[scene_index]["source"] = "avatar"
