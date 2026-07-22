@@ -272,7 +272,6 @@ def generate_avatar_video(
         "--driven_audio", abs_audio,
         "--source_image", abs_photo,
         "--result_dir", abs_result_dir,
-        "--still",
         "--preprocess", "full",
     ]
 
