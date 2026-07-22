@@ -23,7 +23,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from configs.settings import VIDEO_WIDTH, VIDEO_HEIGHT, FPS
 
 _FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-_SUBTITLE_BAND_HEIGHT = 280  # height of the transparent strip subtitles sit in
+_SUBTITLE_BAND_HEIGHT = 320  # height of the transparent strip subtitles sit in
 
 
 def _fit_clip_to_duration(clip, duration: float):
@@ -69,11 +69,11 @@ def _make_subtitle_png(text: str, output_path: str):
     draw = ImageDraw.Draw(img)
 
     try:
-        font = ImageFont.truetype(_FONT_PATH, 64)
+        font = ImageFont.truetype(_FONT_PATH, 80)
     except Exception:
         font = ImageFont.load_default()
 
-    wrapped = textwrap.fill(text, width=28)
+    wrapped = textwrap.fill(text, width=22)
     bbox = draw.multiline_textbbox((0, 0), wrapped, font=font, align="center")
     text_w = bbox[2] - bbox[0]
     text_h = bbox[3] - bbox[1]
