@@ -29,12 +29,17 @@ Structure it as JSON with these exact keys:
   "hook": "1-2 punchy sentences to grab attention in the first 3 seconds",
   "body": ["sentence 1", "sentence 2", "..."],
   "cta": "short call-to-action for the end (like/subscribe/follow)",
-  "estimated_duration_seconds": 60,
+  "estimated_duration_seconds": 120,
   "visual_queries": ["query for hook", "query for body sentence 1", "query for body sentence 2", "...", "query for cta"]
 }}
 
 Rules for the script:
-- Keep total spoken length around 45-75 seconds when read aloud.
+- Keep total spoken length around 100-160 seconds when read aloud (roughly
+  250-400 spoken words total) — this should be a rich, detailed video, not
+  a shallow summary. Include specific facts, numbers, names, and concrete
+  details rather than vague generalities.
+- Aim for 10-16 body sentences that each add a genuinely new, specific
+  point — avoid padding with restatements of the same idea.
 - Simple, clear, engaging spoken language (not written/formal).
 - Body should be broken into short sentences (good for subtitle timing).
 

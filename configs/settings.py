@@ -39,7 +39,7 @@ PERPLEXITY_API_KEY = get_env("PERPLEXITY_API_KEY")
 PEXELS_API_KEY = get_env("PEXELS_API_KEY")
 
 # --- Script generation provider: "gemini" or "kimi" ---
-SCRIPT_PROVIDER = get_env("SCRIPT_PROVIDER", "gemini")
+SCRIPT_PROVIDER = get_env("SCRIPT_PROVIDER", "kimi")
 
 # --- Video settings ---
 VIDEO_WIDTH = 1920
